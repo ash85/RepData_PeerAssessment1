@@ -1,0 +1,174 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+>Show any code that is needed to
+
+ 1. Load the data (i.e. read.csv())
+ 
+ 2. Process/transform the data (if necessary) into a format suitable for your analysis
+
+```{r echo=TRUE}
+data <- read.csv("activity.csv")
+```
+
+A portion of the original dataset is as follows:
+```{r echo=FALSE}
+print(data[1:20,])
+```
+
+### What is mean total number of steps taken per day?
+
+For this part of the assignment, you can ignore the missing values in
+the dataset.
+
+1. Make a histogram of the total number of steps taken each day
+
+2. Calculate and report the **mean** and **median** total number of steps taken per day
+
+
+```{r echo=TRUE}
+steps_by_day <- aggregate(steps ~ date, data, sum)
+hist(steps_by_day$steps, main = paste("Total Steps Each Day"), col="blue", xlab="Number of Steps")
+```
+
+
+1. Mean
+```{r echo=TRUE}
+      rmean <- mean(steps_by_day$steps,na.rm = TRUE)
+```
+```{r echo=FALSE}
+      print(rmean)
+```
+2. Median
+```{r echo=TRUE}
+      rmedian <- median(steps_by_day$steps)
+```
+```{r echo=FALSE}
+      print(rmedian)
+```
+
+
+
+## What is the average daily activity pattern?
+
+* Calculate average steps for each interval for all days. 
+* Plot the Average Number Steps per Day by Interval. 
+* Find interval with most average steps. 
+```{r}
+steps_by_interval <- aggregate(steps ~ interval, data, mean)
+
+plot(steps_by_interval$interval,steps_by_interval$steps, type="l", xlab="Interval", ylab="Number of Steps",main="Average Number of Steps per Day by Interval")
+
+max_interval <- steps_by_interval[which.max(steps_by_interval$steps),1]
+```
+
+Maximum number of steps interval :  **`r as.character(max_interval)`**  to  **`r as.character(max_interval+5)`** minutes.
+
+
+## Impute missing values. Compare imputed to non-imputed data.
+Missing data needed to be imputed. Only a simple imputation approach was required for this assignment. 
+Missing values were imputed by inserting the average for each interval. 
+
+```{r}
+incomplete <- sum(!complete.cases(data))
+step_i <- data.frame(data$steps)
+step_i[is.na(step_i),] <- ceiling(tapply(X=data$steps,INDEX=data$interval,FUN=mean,na.rm=TRUE))
+imp_data <- cbind(step_i, data[,2:3])
+colnames(imp_data) <- c("steps", "date", "interval")
+```
+
+
+Recount total steps by day and create Histogram. 
+```{r}
+steps_by_day_i <- aggregate(steps ~ date, imp_data, sum)
+hist(steps_by_day_i$steps, main = paste("Total Steps Each Day"), col="blue", xlab="Number of Steps")
+```
+
+Calculate new mean and median for imputed data. 
+```{r echo=TRUE}
+rmean_i <- mean(steps_by_day_i$steps)
+rmedian_i <- median(steps_by_day_i$steps)
+```
+
+Imputed Mean
+```{r echo=FALSE}
+     
+      print(rmean_i)
+```
+
+Imputed Median
+```{r echo=FALSE}
+ 
+      print(rmedian_i)
+```
+Calculate difference between imputed and non-imputed data.
+```{r}
+mean_diff <- rmean_i - rmean
+mean_diff
+med_diff <- rmedian_i - rmedian
+med_diff
+
+```
+
+Calculate total difference.
+```{r}
+total_diff <- sum(steps_by_day_i$steps) - sum(steps_by_day$steps)
+total_diff
+```
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+
+1.  A new column indicating whether the date is a weekday or a weekend is added to the new dataset created in the previous section.
+
+```{r echo=TRUE}
+  DayType <- data.frame(sapply(X=imp_data$date, FUN=function(day) {
+    if (weekdays(as.Date(day)) %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")) {
+      day <- "weekday"
+    }
+    else {
+      day <- "weekend"
+    } 
+  }))
+  imp_data2 <- cbind(imp_data, DayType)
+  
+  colnames(imp_data2) <- c("Steps", "Date", "Interval", "DayType")
+```
+
+2. The data is then separated into weekday or weekend and the mean (average) number of steps taken for each 5-minute interval, itself averaged across all weekday days or weekend days is calculated.
+
+```{r echo=TRUE, tidy=FALSE}
+  dayTypeIntervalSteps <- aggregate(
+      data=imp_data2,
+      Steps ~ DayType + Interval,
+      FUN=mean
+  )
+```  
+
+A portion of the dataset is as follows:
+```{r echo=FALSE}
+  print(dayTypeIntervalSteps[1:20,])
+```
+
+
+. Finally, a panel plot of both weekend and weekday graphs is generated.
+
+```{r fig.width=15, echo=TRUE, tidy=FALSE}
+  library("lattice")
+  
+  xyplot(
+      type="l",
+      data=dayTypeIntervalSteps,
+      Steps ~ Interval | DayType,
+      xlab="Interval",
+      ylab="Number of steps",
+      layout=c(1,2)
+  )
+```
